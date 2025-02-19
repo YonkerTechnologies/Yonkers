@@ -1,0 +1,4 @@
+- include_tasks: check.yml
+- include_tasks: unjoin.yml
+- include_tasks: uninstall.yml
+- include_tasks: cleanup.yml

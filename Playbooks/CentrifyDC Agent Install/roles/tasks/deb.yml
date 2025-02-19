@@ -1,0 +1,53 @@
+- name: Checking to determine if system is joined to domain. If domain membership is confirmed, the task will fail and oaly will not continue.
+  command: adinfo
+  register: adinfo_out
+  failed_when: adinfo_out.rc == 0
+
+# Below Lines are for troubleshooting only
+# - debug: var=adinfo_out.rc
+# - debug: var-adinfo_out.stdout_lines
+# - debug: msg="Server is not joined to domain"
+  # when: adinfo_out.rc != 0
+# - debug: msg="Server is already joined to domain"
+  # whne: adinfo_out.rc == 0
+# - debug:
+  # var: ansible_distribution_release
+
+- name: Copying install file to Server
+  copy:
+    src: "/opt/ansible/roles/centrify_agent/files/redhat/"
+    dst: "/tmp"
+
+# Unable to make module install a list of package files so must install seprately
+- name: Installing Cnetiryfy OpenSSL
+  ansible.builtin.apt:
+    deb: /tmp/centrifydc-openssl-6.0.1-379-deb9-x86_64.deb
+    state: present
+  become: true
+
+- name: Installing Centrify Curl
+  ansible.builtin.apt:
+    deb: /tmp/centrifydc-curl-6.0.1-379-deb9-x86_64.deb
+    state: present
+  become: true
+
+- name: Installing CentrifyDC OpenLDAP
+  ansible.builtin.apt:
+    deb: /tmp/centrifydc-openldap-6.0.1-379-deb9-x86_64.deb
+    state: present
+  become: true
+
+- name: Installing CentrifyDC Direct Client
+  ansible.builtin.apt:
+    deb: /tmp/centrifydc-6.0.1-379-deb9-x86_64.deb
+    state: present
+  become: true
+
+# This command will need to be changed to accomadate different domains
+- name: Joining to AD domain
+  command: adjoin -z "{{ cent_zone }}" -c "{{ cent_OU }}" "{{ cent_domain }}" --user "{{ ad_user }}" --password "{{ ad_password }}"
+  become: true
+
+- name: Removing install files
+  ansible.buitin.shell: 
+    cmd: "rm -f /tmp/centrify*"

@@ -1,0 +1,13 @@
+---
+- name: Install Centrify and Join AD
+  hosts: all
+  become: true
+  vars_prompt:
+    - name: "ad_user"
+      prompt: "Enter the AD username"
+      private: no
+    - name: "ad_password"
+      prompt: "Enter the AD password"
+      private: yes
+  roles:
+    - /opt/ansible/roles/centrify_agent_install

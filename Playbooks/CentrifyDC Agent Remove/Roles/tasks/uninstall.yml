@@ -1,0 +1,49 @@
+- name: Stop CentrifyDC service
+  ansible.builtin.service:
+    name: centrifydc
+    state: stopped
+    enabled: no
+
+- name: Debug OS Family
+  ansible.builtin.debug:
+    msg: "OS Family Detected: {{ ansible_os_family }}"
+
+- name: Debug installed packages (Debian-based systems)
+  ansible.builtin.shell:
+    cmd: dpkg -l | grep -i centrifydc
+  register: centrifydc_packages_deb
+  when: "'Debian' in ansible_os_family"
+
+- name: Debug installed packages (RPM-based systems)
+  ansible.builtin.shell:
+    cmd: rpm -qa | grep -i centrifydc
+  register: centrifydc_packages_rpm
+  when: "'RedHat' in ansible_os_family"
+
+- name: Debug Package removal status
+  ansible.builtin.debug:
+    msg:
+      - "Debian packages found: {{ centrifydc_packages_deb.stdout_lines | default([]) }}"
+      - "RPM packages found: {{ centrifydc_packages_rpm.stdout_lines | default([]) }}" 
+
+- name: Remove CentrifyDC packages (Debian-based systems)
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: absent
+  with_items:
+    - centrifydc
+    - centrifydc-curl
+    - centrifydc-openldap
+    - centrifydc-openssl
+  when: "'Debian' in ansible_os_family and centrifydc_packages_deb.stdout_lines | length > 0"
+
+- name: Remove CentrifyDC packages (RPM-based systems)
+  ansible.builtin.yum:
+    name: "{{ item }}"
+    state: absent
+  with_items:
+    - CentrifyDC
+    - CentrifyDC-curl
+    - CentrifyDC-openldap
+    - CentrifyDC-openssl
+  when: "'RedHat' in ansible_os_family and centrifydc_packages_rpm.stdout_lines | length > 0"

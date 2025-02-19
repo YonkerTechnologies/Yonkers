@@ -1,0 +1,20 @@
+- name: Check for CentrifyDC package (RPM-based systems)
+  ansible.builtin.shell: rpm -q CentrifyDC
+  register: centrifydc_rpm
+  failed_when: false
+
+- name: Check for CentrifyDC package (Debian-based systems)
+  ansible.builtin.shell: dpkg -l | grep centrifydc
+  register: centrifydc_deb
+  failed_when: false
+
+- name: Debug CentrifyDC status
+  ansible.builtin.debug:
+    msg:
+      - "RPM Package: {{ centrifydc_rpm.stdout }}"
+      - "Deb Package: {{ centrifydc_deb.stdout }}"
+
+- name: Fail if CentrifyDC is not installed
+  fail:
+    msg: "CentrifyDC is not installed on this server."
+  when: centrifydc_rpm.stdout == "" and centrifydc_deb.stdout == ""

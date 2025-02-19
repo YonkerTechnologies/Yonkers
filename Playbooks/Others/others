@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# Packages grouped by categories
+declare -A categories=(
+    ["System Monitoring"]="htop iotop net-tools sysstat dstat"
+    ["Networking Utilities"]="curl wget traceroute netcat tcpdump iproute"
+    ["Backup Tools"]="rsync tar duplicity"
+    ["Virtualization"]="open-vm-tools"
+    ["Troubleshooting"]="strace lsof logrotate"
+    ["Development Tools"]="git gcc make perl python3 vim nano"
+    ["Time Sync"]="chrony ntp"
+    ["Disk Management"]="parted fdisk lvm2 ncdu"
+)
+
+# Arrays to store status
+installed_pkgs=()
+newly_installed_pkgs=()
+
+# Function to check and install packages
+check_and_install() {
+    for pkg in $1; do
+        if rpm -q $pkg &>/dev/null; then
+            installed_pkgs+=("$pkg")
+        else
+            echo "Installing $pkg..."
+            sudo dnf install -y $pkg
+            if rpm -q $pkg &>/dev/null; then
+                newly_installed_pkgs+=("$pkg")
+            else
+                echo "Failed to install $pkg."
+            fi
+        fi
+    done
+}
+
+# Process each category
+for category in "${!categories[@]}"; do
+    echo "Checking $category..."
+    check_and_install "${categories[$category]}"
+done
+
+# Summary Report
+echo -e "\n===== Installation Summary ====="
+echo "Already Installed Packages:"
+printf "%s\n" "${installed_pkgs[@]}"
+
+echo -e "\nNewly Installed Packages:"
+printf "%s\n" "${newly_installed_pkgs[@]}"
+
+echo -e "\n===== Script Completed ====="

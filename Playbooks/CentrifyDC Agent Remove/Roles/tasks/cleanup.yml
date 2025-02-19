@@ -1,0 +1,20 @@
+---
+- name: Remove CentrifyDC configuration directory
+  file:
+    path: /etc/centrifydc
+    state: absent
+
+- name: Remove CentrifyDC logs
+  file:
+    path: /var/centrify
+    state: absent
+
+- name: Clean up AD-related files
+  file:
+    path: /var/centrifydc
+    state: absent
+
+- name: Confirm removal
+  debug:
+    msg: "CentrifyDC has been successfully removed, and the server has left the AD domain."
+

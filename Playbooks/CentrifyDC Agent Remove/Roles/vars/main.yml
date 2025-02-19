@@ -1,0 +1,13 @@
+---
+# Variables for package removal
+rpm_packages:
+  - CentrifyDC
+  - CentrifyDC-curl
+  - CentrifyDC-openldap
+  - CentrifyDC-openssl
+
+deb_packages:
+  - centrifydc
+  - centrifydc-curl
+  - centrifydc-openldap
+  - centrifydc-openssl

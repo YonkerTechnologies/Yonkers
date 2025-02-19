@@ -1,0 +1,45 @@
+- name: Checking to determine if system is joined to domain. If domain membership is confirmed, the task will fail and oaly will not continue.
+  command: adinfo
+  register: adinfo_out
+  failed_when: adinfo_out.rc == 0
+
+# Below Lines are for troubleshooting only
+# - debug: var=adinfo_out.rc
+# - debug: var-adinfo_out.stdout_lines
+# - debug: msg="Server is not joined to domain"
+  # when: adinfo_out.rc != 0
+# - debug: msg="Server is already joined to domain"
+  # whne: adinfo_out.rc == 0
+
+- name: Confirm dependencies (chkcinfig and perl) are both installed
+  yum:
+    name: 
+      - chkconfig
+      - perl
+    state: present
+  become: true
+
+- name: Copying install file to Server
+  copy:
+    src: "/opt/ansible/roles/centrify_agent/files/redhat/"
+    dst: "/tmp"
+
+- name: Install Centrify Packages
+  yum: 
+    name: 
+      - /tmp/CentrifyDC-6.0.1-379-rhel6.x86_64.rpm
+      - / tmp/CentrifyDC-curl-6.0.1-379-rhel6.x86 64.rpm
+      - /tmp/CentrifyDC-openldap-6.0.1-379-rhel6.x86_64.rpm
+      - /tmp/CentrifyDC-openssl-6.0.1-379-rhel6-x86_64.rpm
+    state: present
+    disable_gpg_check: yes
+  become: true
+
+# This command will need to be changed to accomadate different domains
+- name: Joining to AD domain
+  command: adjoin -z "{{ cent_zone }}" -c "{{ cent_OU }}" "{{ cent_domain }}" --user "{{ ad_user }}" --password "{{ ad_password }}"
+  become: true
+
+- name: Removing install files
+  ansible.buitin.shell: 
+    cmd: "rm -f /tmp/centrify*"

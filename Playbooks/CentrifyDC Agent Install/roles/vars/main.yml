@@ -1,0 +1,4 @@
+---
+ad_domain: "example.com"  # Replace with your domain
+ad_zone: "MyZone"         # Replace with your Centrify zone
+ad_ou: "OU=Servers,DC=example,DC=com"  # Replace with your OU

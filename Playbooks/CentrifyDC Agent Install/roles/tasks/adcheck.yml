@@ -1,0 +1,4 @@
+- name: Running AD check
+  script: /opt/ansible/roles/centrify_agent/files/adcheck-rhel6-x86_64 esa.local
+  become: true
+  

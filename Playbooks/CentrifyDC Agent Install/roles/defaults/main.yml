@@ -1,0 +1,14 @@
+---
+# RPM Packages
+rpm_packages:
+  - "CentrifyDC-6.0.1-379-rhel6.x86_64.rpm"
+  - "CentrifyDC-curl-6.0.1-379-rhel6.x86_64.rpm"
+  - "CentrifyDC-openldap-6.0.1-379-rhel6.x86_64.rpm"
+  - "CentrifyDC-openssl-6.0.1-379-rhel6.x86_64.rpm"
+
+# DEB Packages
+deb_packages:
+  - "centrifydc-6.0.1-379-deb9-x86_64.deb"
+  - "centrifydc-curl-6.0.1-379-deb9-x86_64.deb"
+  - "centrifydc-openldap-6.0.1-379-deb9-x86_64.deb"
+  - "centrifydc-openssl-6.0.1-379-deb9-x86_64.deb"

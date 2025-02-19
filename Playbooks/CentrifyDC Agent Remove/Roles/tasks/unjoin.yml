@@ -1,0 +1,23 @@
+- name: Check AD domain join status
+  ansible.builtin.shell:
+    cmd: "adinfo --domain"
+  register: ad_join_status
+  failed_when: false
+
+- name: Unjoin the server from Active Directory
+  ansible.builtin.shell:
+    cmd: adleave -u "{{ ad_username }}"
+    stdin: "{{ ad_password }}"
+  args:
+    executable: /bin/bash
+  register: leave_output
+  failed_when: leave_output.rc != 0 and 'not joined to any domain' not in leave_output.stdout
+  ignore_errors: yes
+
+- name: Remove License from AD (If Joined)
+  ansible.builtin.shell:
+    cmd: adlicense -e
+  register: adlicense_result
+  changed_when: false
+  failed_when: adlicense_result.rc != 0
+  ignore_errors: yes

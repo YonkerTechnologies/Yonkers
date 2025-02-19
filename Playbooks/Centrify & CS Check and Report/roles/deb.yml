@@ -1,0 +1,37 @@
+- name: Check if CentrifyDC is installed
+  shell: "dpkg -l | grep -i centrifydc || true"
+  register: centrifydc_check
+  ignore_errors: yes
+
+- name: Check if Falcon Sensor is installed
+  shell: "dpkg -l | grep -i falcon-sensor || true"
+  register: falcon_sensor_check
+  ignore_errors: yes
+
+- name: Check CentrifyDC service status (if installed)
+  command: "systemctl is-active centrifydc"
+  register: centrifydc_status
+  when: "'centrifydc' in centrifydc_check.stdout"
+  ignore_errors: yes
+
+- name: Check Falcon Sensor service status (if installed)
+  command: "systemctl is-active falcon-sensor"
+  register: falcon_sensor_status
+  when: "'falcon-sensor' in falcon_sensor_check.stdout"
+  ignore_errors: yes
+
+- name: Format status info
+  set_fact:
+    status_info: |
+      {{ inventory_hostname }}:
+      - CentrifyDC: {{ 'Installed' if 'centrifydc' in centrifydc_check.stdout else 'Not Installed' }} - Status: {{ 'Running' if centrifydc_status.stdout == 'active' else 'Not Running' }}
+      - Falcon Sensor: {{ 'Installed' if 'falcon-sensor' in falcon_sensor_check.stdout else 'Not Installed' }} - Status: {{ 'Running' if falcon_sensor_status.stdout == 'active' else 'Not Running' }}
+
+- name: Append status info to the DEB report file
+  lineinfile:
+    path: "/tmp/status_report_deb.txt"
+    line: "{{ status_info }}"
+    create: yes
+    insertafter: EOF
+  delegate_to: localhost
+  run_once: false

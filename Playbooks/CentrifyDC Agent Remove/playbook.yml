@@ -1,0 +1,13 @@
+---
+- name: CentrifyDC Removal and AD Leave
+  hosts: all
+  become: yes
+  vars_prompt:
+    - name: "ad_username"
+      prompt: "Enter your AD username"
+      private: no
+    - name: "ad_password"
+      prompt: "Enter your AD password"
+      private: yes
+  roles:
+    - /opt/ansible/roles/centrify_agent_remove
