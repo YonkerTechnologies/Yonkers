@@ -9,5 +9,5 @@ We are Equal Employer Opportunity firm where we strongly believes that our team 
 - The playbooks are structured for consistency, security, and ease of use.  
 
 ## Repository Structure  
-- `playbooks/` – Contains Ansible playbooks for various automation tasks and Reusable Ansible roles for modular automation.
-- `docs/` – Documentation Contains some troubleshooting docs to help a system admin troubleshoot them.
+- `My Playbooks/` – Contains Ansible playbooks for various automation tasks and Reusable Ansible roles for modular automation.
+- `Documents/` – Documentation Contains some troubleshooting docs to help a system admin troubleshoot them.
