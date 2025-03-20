@@ -8,4 +8,4 @@ This repository contains Ansible playbooks and related documentation for automat
 ## Repository Structure  
 - `playbooks/` – Contains Ansible playbooks for various automation tasks  
 - `roles/` – Reusable Ansible roles for modular automation  
-- `docs/` – Documentation for playbook usage and configurations  
+- `docs/` – Documentation Contains some troubleshooting docs to help a system admin performing those tasks
