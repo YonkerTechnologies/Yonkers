@@ -1,6 +1,5 @@
 # Yonkers
-For the Organisation
-We are Equal Employer Opportunity firm where we strongly believes that our team is the pillar for our success! Since 
+For the Organisation. We are Equal Employer Opportunity firm where we strongly believes that our team is the pillar for our success!
 
 # Ansible Playbooks and Documentation  
 
