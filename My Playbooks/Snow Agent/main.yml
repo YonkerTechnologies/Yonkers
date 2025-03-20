@@ -1,0 +1,36 @@
+- name: Print OS family
+  debug:
+    msg: "{{ ansible_facts['os_family'] }}"
+
+- name: Include RPM play if appropriate
+  include_tasks: rpm.yml
+  when: ansible_facts['os_family'] == "RedHat"
+
+- name: Include DEB play if appropriate
+  include_tasks: deb.yml
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Ensure if the report file is empty in the starting (RUn only once)
+  file:
+    path: "/tmp/snow_result.txt"
+    state: touch
+  delegate_to: localhost
+  run_once: true
+
+- name: Send email with both status reports
+  community.general.mail:
+    host: smtp.example.com
+    port: 25 or according to the organisation
+    username: smpt_username
+    password: "{{ smpt_password }}"
+    from: "smpt_username"
+    to:
+      - "{{ recipient_user_mail_id }}"
+    subject: "Ansible System Status Report"
+    body: "Attached are the system status reports for RPM and DEB-based servers."
+    attach:
+      - "/tmp/snow_result.txt"
+    secure: starttls
+  delegate_to: localhost
+  run_once: true
+

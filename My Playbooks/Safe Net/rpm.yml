@@ -1,0 +1,61 @@
+- name: Check if SafeNet is installed
+  shell: rpm -qa | grep -i safenet
+  register: safenet_installed_rpm
+  ignore_errors: true
+
+- name: Collecting the status information
+  set_fact:
+    safenet_status: |
+      {{ inventory_hostname }}:
+      - safenet: {{ 'Installed' if centrifydc_check.rc == 0 else 'Not Installed' }}
+
+      -----------------------------------------------------------------------------
+
+- name: Appending the status information into the file
+  lineinfile:
+    path: "/tmp/chck_safenet_installed.txt"
+    line: "{{ safenet_status }}"
+    create: yes
+    insertafter: EOF
+  delegate_to: localhost
+  run_once: false
+
+- name: Ensuring if the status report file exists
+  stat:
+    path: "/tmp/chck_safenet_installed.txt"
+  delegate_to: localhost
+  register: status_file
+  run_once: true
+
+
+
+------------------------------------------------------------------------------------
+
+
+---
+- name: Check if SafeNet is installed
+  shell: rpm -qa | grep -i safenet
+  register: safenet_installed_rpm
+  ignore_errors: true
+
+- name: Collecting the status information
+  set_fact:
+    safenet_status: |
+      {{ inventory_hostname }}:
+      - SafeNet: {{ 'Installed' if safenet_installed_rpm.rc == 0 else 'Not Installed' }}
+      -------------------------------------------------------------------------------
+
+- name: Appending the status information into the file
+  lineinfile:
+    path: "/tmp/chck_safenet_installed.txt"
+    line: "{{ safenet_status }}"
+    create: yes
+    insertafter: EOF
+  delegate_to: localhost
+
+- name: Ensuring the status report file exists
+  stat:
+    path: "/tmp/chck_safenet_installed.txt"
+  delegate_to: localhost
+  register: status_file
+  run_once: true

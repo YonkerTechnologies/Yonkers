@@ -1,0 +1,76 @@
+## Pre-Check Playbook
+
+- name: Pre-checks before security patching
+  hosts: all
+  become: yes
+  tasks:
+    - name: Backup important configuration files
+      copy:
+        src: "{{ item }}"
+        dest: "{{ item }}.bak"
+        remote_src: yes
+      loop:
+        - /etc/resolv.conf
+        - /etc/sysctl.conf
+        - /etc/fstab
+
+    - name: Backup network configuration directory
+      shell: cp -r /etc/netplan /root/netplan-backup || cp -r /etc/network /root/network-backup
+      args:
+        executable: /bin/bash
+
+    - name: Display /var usage
+      command: df -h /var
+      register: var_usage
+
+    - name: Show /var usage
+      debug:
+        msg: "{{ var_usage.stdout }}"
+
+    - name: Update APT cache
+      command: apt update
+
+    - name: Check SELinux status
+      command: sestatus
+      register: selinux_status
+      ignore_errors: yes
+
+    - name: Display SELinux status
+      debug:
+        msg: "{{ selinux_status.stdout | default('SELinux not installed') }}"
+
+    - name: Check installed NFS packages
+      command: dpkg -l | grep -i nfs
+      register: nfs_status
+
+    - name: Display NFS status
+      debug:
+        msg: "Installed NFS packages: {{ nfs_status.stdout_lines }}"
+
+    - name: Comment out NFS mounts in fstab
+      replace:
+        path: /etc/fstab
+        regexp: '^(.*nfs.*)$'
+        replace: '#\1'
+
+    - name: Check firewall status
+      command: systemctl is-active ufw
+      register: firewall_status
+      ignore_errors: yes
+
+    - name: Display firewall status
+      debug:
+        msg: "UFW firewall status: {{ firewall_status.stdout | default('Not installed') }}"
+
+
+## Main Patching Playbook
+---
+- name: Apply security updates
+  hosts: all
+  become: yes
+  tasks:
+    - name: Apply security updates
+      apt:
+        upgrade: dist
+        update_cache: yes
+        only_upgrade: yes

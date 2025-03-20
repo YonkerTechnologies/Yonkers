@@ -1,0 +1,92 @@
+## Pre-Check Playbook
+
+- name: Pre-checks before security patching
+  hosts: all
+  become: yes
+  tasks:
+    - name: Backup important configuration files
+      copy:
+        src: "{{ item }}"
+        dest: "{{ item }}.bak"
+        remote_src: yes
+      loop:
+        - /etc/resolv.conf
+        - /etc/sysctl.conf
+        - /etc/fstab
+
+    - name: Backup network configuration directory
+      copy:
+        src: /etc/sysconfig/network-scripts
+        dest: /root/network-scripts-backup
+        remote_src: yes
+
+    - name: Get /var partition usage
+      stat:
+        path: /var
+      register: var_stat
+
+    - name: Display /var usage
+      debug:
+        msg: "/var has {{ var_stat.stat.blocks_available | int * var_stat.stat.block_size | int // (1024 * 1024) }} MB available"
+
+    - name: Clean and update package cache
+      block:
+        - name: Clean and update cache using DNF (RHEL 8+)
+          dnf:
+            name: '*'
+            state: latest
+            update_cache: yes
+          when: ansible_facts['distribution_major_version']|int >= 8
+
+        - name: Clean and update cache using YUM (RHEL 7 and earlier)
+          yum:
+            name: '*'
+            state: latest
+            update_cache: yes
+          when: ansible_facts['distribution_major_version']|int < 8
+
+    - name: Gather system facts
+      setup:
+
+    - name: Get SELinux status from facts
+      debug:
+        msg: "SELinux is {{ ansible_facts.selinux.status }}"
+
+    - name: Gather installed package facts
+      package_facts:
+        manager: auto
+
+    - name: Check installed NFS packages
+      debug:
+        msg: "Installed NFS packages: {{ ansible_facts.packages | dict2items | selectattr('key', 'search', 'nfs') | map(attribute='key') | list }}"
+
+    - name: Comment out NFS mounts in fstab
+      lineinfile:
+        path: /etc/fstab
+        regexp: '^([^#].*\bnfs\b.*)$'
+        line: '#\1'
+        backrefs: yes
+
+    - name: Check firewall status
+      systemd:
+        name: firewalld
+        state: started
+      register: firewall_status
+      ignore_errors: yes
+
+    - name: Display firewall status
+      debug:
+        msg: "Firewall is running: {{ firewall_status is succeeded }}"
+
+
+## Main Patching Playbook
+---
+- name: Apply security updates
+  hosts: all
+  become: yes
+  tasks:
+    - name: Apply updates
+      yum:
+        name: '*'
+        state: latest
+        security: yes

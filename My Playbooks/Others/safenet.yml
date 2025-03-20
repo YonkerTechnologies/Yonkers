@@ -1,0 +1,36 @@
+- name: Check if SafeNet is installed and send report
+  hosts: all
+  become: yes
+  gather_facts: no
+
+  vars:
+    safenet_package_name: "safenet"
+    report_file: "/tmp/safenet_status_report.txt"
+    smtp_server: "smtp.example.com"
+    smtp_port: 25
+    email_to: "admin@example.com"
+
+  tasks:
+    - name: Check if SafeNet is installed
+      shell: "rpm -qa | grep -i {{ safenet_package_name }}"
+      register: safenet_installed
+      ignore_errors: true
+      check_mode: false
+      changed_when: false
+
+    - name: Determine installation status
+      set_fact:
+        safenet_status: "{{ 'Installed' if safenet_installed.rc == 0 else 'Not Installed' }}"
+
+    - name: Print status
+      debug:
+        msg: "SafeNet is {{ safenet_status }}"
+
+    - name: Append SafeNet status to report file
+      lineinfile:
+        path: "{{ report_file }}"
+        line: "{{ inventory_hostname }} - SafeNet is {{ safenet_status }}"
+        create: yes
+      delegate_to: localhost
+      run_once: false  # Collect from all servers
+

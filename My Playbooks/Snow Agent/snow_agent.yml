@@ -1,0 +1,13 @@
+---
+- name: Installing of SNowagent and also Scanning/Sending of scan results to Snow Server
+  hosts: all
+  become: true
+  vars_prompt:
+    - name: "smpt_password"
+      prompt: "Enter the pasword"
+      private: yes
+    - name: "recipient_user_mail_id"
+      prompt: "Enter the recipient mail id"
+      private: no
+  roles:
+    - /opt/ansible/roles/snow_agent

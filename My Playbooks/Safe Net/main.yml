@@ -1,0 +1,74 @@
+- name: Print OS family
+  debug:
+    msg: "{{ ansible_facts['os_family'] }}"
+
+- name: Include RPM play if appropriate
+  include_tasks: rpm.yml
+  when: ansible_facts['os_family'] == "RedHat"
+
+- name: Include DEB play if appropriate
+  include_tasks: deb.yml
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Ensure status files exists before sending email
+  file:
+    path: /tmp/chck_safenet_installed.txt
+    state: touch
+  delegate_to: localhost
+  run_once: true
+
+- name: Send email with status reports
+  community.general.mail:
+    host: smtp.example.com
+    port: 25
+    username: admin@example.com
+    password: "{{ smtp_password }}"
+    from: admin@example.com
+    to:
+      - "{{ recipient_user }}"
+    subject: "Ansible System Status Report"
+    body: "Attached are the system status reports for RPM and DEB-based servers."
+    attach:
+      - "/tmp/chck_safenet_installed.txt"
+  delegate_to: localhost
+  run_once: true
+
+
+------------------------------------------------------------------------------------------
+
+
+---
+- name: Print OS family
+  debug:
+    msg: "{{ ansible_facts['os_family'] }}"
+
+- name: Include RPM play if appropriate
+  include_tasks: rpm.yml
+  when: ansible_facts['os_family'] == "RedHat"
+
+- name: Include DEB play if appropriate
+  include_tasks: deb.yml
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Ensure status file exists before sending email
+  file:
+    path: /tmp/chck_safenet_installed.txt
+    state: touch
+  delegate_to: localhost
+  run_once: true
+
+- name: Send email with status reports
+  community.general.mail:
+    host: smtp.example.com
+    port: 25
+    username: admin@example.com
+    password: "{{ smtp_password }}"
+    from: admin@example.com
+    to:
+      - "{{ recipient_user }}"
+    subject: "Ansible System Status Report"
+    body: "Attached is the system status report for SafeNet installation."
+    attach:
+      - "/tmp/chck_safenet_installed.txt"
+  delegate_to: localhost
+  run_once: true

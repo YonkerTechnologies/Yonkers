@@ -1,0 +1,172 @@
+# RPM-Based Systems (RHEL, Rocky, CentOS)
+
+## Pre-Check Playbook
+---
+- name: Pre-checks before security patching
+  hosts: all
+  become: yes
+  tasks:
+    - name: Backup /etc/resolv.conf
+      copy:
+        src: /etc/resolv.conf
+        dest: /etc/resolv.conf.bak
+        remote_src: yes
+
+    - name: Backup /etc/sysctl.conf
+      copy:
+        src: /etc/sysctl.conf
+        dest: /etc/sysctl.conf.bak
+        remote_src: yes
+
+    - name: Backup /etc/fstab
+      copy:
+        src: /etc/fstab
+        dest: /etc/fstab.bak
+        remote_src: yes
+
+    - name: Backup network config files
+      shell: cp -r /etc/sysconfig/network-scripts /root/network-scripts-backup
+      args:
+        executable: /bin/bash
+
+    - name: Display /var usage
+      command: df -h /var
+      register: var_usage
+
+    - name: Show /var usage
+      debug:
+        msg: "{{ var_usage.stdout }}"
+
+    - name: Clean and update YUM cache
+      command: yum clean all && yum makecache
+
+    - name: Check SELinux status
+      command: getenforce
+      register: selinux_status
+
+    - name: Display SELinux status
+      debug:
+        msg: "SELinux is {{ selinux_status.stdout }}"
+
+    - name: Check installed NFS packages
+      command: rpm -qa | grep -i nfs
+      register: nfs_status
+
+    - name: Display NFS status
+      debug:
+        msg: "Installed NFS packages: {{ nfs_status.stdout_lines }}"
+
+    - name: Comment out NFS mounts in fstab
+      replace:
+        path: /etc/fstab
+        regexp: '^(.*nfs.*)$'
+        replace: '#\1'
+
+    - name: Check firewall status
+      systemd:
+        name: firewalld
+        state: started
+      register: firewall_status
+      ignore_errors: yes
+
+    - name: Display firewall status
+      debug:
+        msg: "Firewall is running: {{ firewall_status is succeeded }}"
+
+## Main Patching Playbook
+---
+- name: Apply security updates
+  hosts: all
+  become: yes
+  tasks:
+    - name: Apply updates
+      yum:
+        name: '*'
+        state: latest
+        security: yes
+
+# DEB-Based Systems (Ubuntu, Debian)
+
+## Pre-Check Playbook
+---
+- name: Pre-checks before security patching
+  hosts: all
+  become: yes
+  tasks:
+    - name: Backup /etc/resolv.conf
+      copy:
+        src: /etc/resolv.conf
+        dest: /etc/resolv.conf.bak
+        remote_src: yes
+
+    - name: Backup /etc/sysctl.conf
+      copy:
+        src: /etc/sysctl.conf
+        dest: /etc/sysctl.conf.bak
+        remote_src: yes
+
+    - name: Backup /etc/fstab
+      copy:
+        src: /etc/fstab
+        dest: /etc/fstab.bak
+        remote_src: yes
+
+    - name: Backup network config
+      shell: cp -r /etc/netplan /root/netplan-backup || cp -r /etc/network /root/network-backup
+      args:
+        executable: /bin/bash
+
+    - name: Display /var usage
+      command: df -h /var
+      register: var_usage
+
+    - name: Show /var usage
+      debug:
+        msg: "{{ var_usage.stdout }}"
+
+    - name: Update APT cache
+      command: apt update
+
+    - name: Check SELinux status
+      command: sestatus
+      register: selinux_status
+      ignore_errors: yes
+
+    - name: Display SELinux status
+      debug:
+        msg: "{{ selinux_status.stdout | default('SELinux not installed') }}"
+
+    - name: Check installed NFS packages
+      command: dpkg -l | grep -i nfs
+      register: nfs_status
+
+    - name: Display NFS status
+      debug:
+        msg: "Installed NFS packages: {{ nfs_status.stdout_lines }}"
+
+    - name: Comment out NFS mounts in fstab
+      replace:
+        path: /etc/fstab
+        regexp: '^(.*nfs.*)$'
+        replace: '#\1'
+
+    - name: Check firewall status
+      command: systemctl is-active ufw
+      register: firewall_status
+      ignore_errors: yes
+
+    - name: Display firewall status
+      debug:
+        msg: "UFW firewall status: {{ firewall_status.stdout | default('Not installed') }}"
+
+## Main Patching Playbook
+---
+- name: Apply security updates
+  hosts: all
+  become: yes
+  tasks:
+    - name: Apply security updates
+      apt:
+        upgrade: dist
+        update_cache: yes
+        only_upgrade: yes

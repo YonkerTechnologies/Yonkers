@@ -1,0 +1,32 @@
+---
+- name: Check Safenet is Installed 
+  hosts: all
+  become: true
+  vars_prompt:
+    - name: "smtp_password"
+      prompt: "Enter your email password as empty"
+      private: yes
+    - name: "recipient_user"
+      prompt: "Enter the recipient email address"
+      private: no
+  roles:
+    - /opt/ansible/roles/chck_safenet
+
+
+
+
+---
+- name: Check if SafeNet is Installed
+  hosts: all
+  become: true
+
+  vars_prompt:
+    - name: "smtp_password"
+      prompt: "Enter your email password as empty"
+      private: yes
+    - name: "recipient_user"
+      prompt: "Enter the recipient email address"
+      private: no
+
+  roles:
+    - chck_safenet  # No need to specify the full path; Ansible automatically finds it in `roles/`

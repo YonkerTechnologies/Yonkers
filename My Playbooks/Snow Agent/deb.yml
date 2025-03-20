@@ -1,0 +1,171 @@
+- name: Check if Java is installed
+  shell: dpkg -l | grep openjdk
+  register: java_check
+
+- name: Copy OpenJDK package to the server
+  copy:
+    src: "/tmp/openjdk.deb"
+    dest: "/tmp/openjdk.deb"
+
+- name: Install OpenJDK package
+  apt:
+    deb: "/tmp/openjdk.deb"
+    state: present
+  register: java_install_result
+
+- name: Fix Broken Dependencies
+  shell: apt --fix-broken install -y
+  register: fixed_broken
+  when: java_install_result.failed
+
+- name: Reinstalling Java Package
+  apt:
+    deb: "/tmp/openjdk.deb"
+    state: present
+  when: fixed_broken.changed
+
+- name: Copy Snow Agent RPM to target server
+  copy:
+    src: /opt/ansible/files/file_name-x64.deb
+    dest: /tmp/
+  changed_when: false
+  failed_when: false
+
+- name: Install Snow Agent
+  apt:
+    deb: /tmp/file_name-x64.deb
+    state: present
+  register: snow_install_result
+
+- name: List cron jobs in /etc/cron.d
+  command: ls -1 /etc/cron.d
+  register: cron_jobs
+  changed_when: false
+
+- name: Check for missing cron jobs
+  set_fact:
+    cron_missing: "{{ item }}"
+    with_items:
+      - SIJSLauncher
+      - SIOHWSLauncher
+      - SIOMSLauncher
+      - snowagent
+  when: item not in cron_jobs.stdout_lines
+
+- name: Check if /bin/sh is linked to dash
+  command: ls -l /bin/sh
+  register: sh_status
+  changed_when: false
+  when: cron_missing is defined
+
+- name: Fix /bin/sh symlink to bash
+  command: ln -sf /bin/bash /bin/sh
+  when: 
+    - cron_missing is defined
+    - "'dash' in sh_status.stdout"
+
+- name: Reinstall Snow Agent
+  apt:
+    deb: "/tmp/file_name-x64.deb"
+    state: present
+  register: snow_reinstall_result
+
+- name: Copy CA Bundle Certificates
+  copy:
+    src: "{{ item }}"
+    dest: "/etc/ssl/certs/{{ item | basename }}"
+    owner: root
+    group: root
+    mode: '0644'
+  with_items:
+    - "/etc/ssl/certs/ca-bundle.crt"
+    - "/etc/ssl/certs/ca-bundle.trust.crt"
+
+- name: Ensure http.ssl_capath setting is present in config
+  lineinfile:
+    path: /opt/snow/snowagent.config
+    line: '<Setting Key="http.ssl_capath" value="/etc/ssl/certs/ca-bundle.crt"/>'
+    insertafter: '<!-- <Setting Key="http.ssl_verify" value="true"/> -->'
+    state: present
+    backup: yes
+
+- name: Uncomment http.ssl_verify setting in config
+  replace:
+    path: /opt/snow/snowagent.config
+    regexp: '<!--\s*(<Setting Key="http\.ssl_verify" value="true"\s*/>)\s*-->'
+    replace: '(<Setting Key="http.ssl_verify" value="true"/>)'
+    backup: yes
+
+- name: Run Snow Agent scan
+  command: /opt/snow/snowagent scan
+  register: scan_result
+  changed_when: false
+  ignore_errors: true
+
+- name: Check Snow Agent scan exit status
+  debug:
+    msg: "Scan command exited with status {{ scan_result.rc }}"
+
+- name: Skip further execution if scan failed
+  meta: end_host
+  when: scan_result.rc != 0
+
+- name: Run Snow Agent send
+  command: /opt/snow/snowagent send
+  register: send_result
+  changed_when: false
+  ignore_errors: true
+
+- name: Display send result
+  debug:
+    msg: "Send successful."
+  when: send_result.rc == 0
+
+- name: Display last 10 lines of Snow Agent log if send failed
+  command: tail -n 10 /opt/snow/data/snowagent.log
+  register: log_output
+  changed_when: false
+  when: send_result.rc != 0
+
+- name: Create report file
+  set_fact:
+    status_info: |
+      (( inventory_hostname )):
+      - Java Installation: {{ 'Installed by Ansible' if java_install_result.changed else 'Already Present' }}
+      - Snow Agent Installation: 
+          - Initial Install: {{ 'Installed by Ansible' if snow_install_result.changed | default(false) else 'Already Present' }}
+           - Reinstall: {{ 'Reinstalled by Ansible' if snow_reinstall_result.changed | default(false) else 'Not Required' }}
+      - Snow Agent Scan:
+          - Scan Exit Status: {{ scan_result.rc }}
+          - Scan Output: {{ scan_result.stdout | default('No Output') | indent(2) }}
+          - Scan Result: {{ 'Success' if scan_result.rc == 0 else 'Failed' }}
+      - Snow Agent Send:
+          - Send Exit Status: {{ send_result.rc }}
+          - Send Output: {{ send_result.stdout | default('No Output') | indent(2) }}
+          - Send Result: {{ 'Success' if send_result.rc == 0 else 'Failed' }}
+      {% if send_result.rc != 0 %}
+      - Error Logs:
+          {{ log_output.stdout | indent(2) }}
+          {% endif %}
+
+      ---------------------------------------------------------------------------------
+
+- name: Appending the status informatipon into the report file
+  lineinfile:
+    path: "/tmp/snow_report.txt"
+    line: "{{ status_info }}"
+    create: yes
+    insertafter: EOF
+  delegate_to: localhost
+  run_once: false
+
+- name: Ensuring if the status report file exists
+  stat:
+    path: "/tmp/snow_report.txt"
+  delegate_to: localhost
+  register: status_file
+  run_once: true
+
+- name: Removing Install files
+  ansible.builtin.shell:
+    cmd: "rm -f /tmp/file_name-x64.deb"

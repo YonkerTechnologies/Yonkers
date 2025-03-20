@@ -1,0 +1,17 @@
+## Main Security Patching for RPM
+
+- name: Apply security updates
+  block:
+    - name: Apply security updates using dnf
+      dnf:
+        name: '*'
+        state: latest
+        security: yes
+      when: ansible_facts['distribution_major_version']|int >= 8
+
+    - name: Apply security updates using yum
+      yum:
+        name: '*'
+        state: latest
+        security: yes
+      when: ansible_facts['distribution_major_version']|int < 8
