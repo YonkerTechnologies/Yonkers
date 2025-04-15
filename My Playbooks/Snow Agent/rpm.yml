@@ -4,10 +4,16 @@
   changed_when: false
   failed_when: false
 
+- name: Copying OpenJDK file to the server
+  copy:
+    src: "/tmp/java-11-openjdk-headless.rpm"
+    dest: /tmp/
+
 - name: Install Java if not present
-  dnf:
-    name: java-11-openjdk
+  yum:
+    name: "/tmp/java-11-openjdk-headless.rpm"
     state: present
+    disable_gpg_check: yes
   register: java_install_result
 
 - name: Checking if Snow Agent is installed
@@ -27,6 +33,21 @@
     state: present
     disable_gpg_check: yes
   register: snow_install_result
+
+- name: Ensure http.ssl_capath setting is present in config
+  lineinfile:
+    path: /opt/snow/snowagent.config
+    line: '<Setting Key="http.ssl_capath" value="/etc/ssl/certs/ca-bundle.crt"/>'
+    insertafter: '<!-- <Setting Key="http.ssl_verify" value="true"/> -->'
+    state: present
+    backup: yes
+
+- name: Uncomment http.ssl_verify setting in config
+  replace:
+    path: /opt/snow/snowagent.config
+    regexp: '<!--\s*(<Setting Key="http\.ssl_verify" value="true"\s*/>)\s*-->'
+    replace: '(<Setting Key="http.ssl_verify" value="true"/>)'
+    backup: yes
 
 - name: Run Snow Agent scan
   shell: /opt/snow/snowagent scan
@@ -97,5 +118,8 @@
   run_once: true
 
 - name: Removing install files
-  ansible.builtin.shell:
-    cmd: "rm -f /tmp/file_name-x64.rpm"
+  file:
+  path: "{{ item }}"
+  loop:
+    - "/tmp/java-11-openjdk-headless.rpm"
+    - "/tmp/file_name-x64.rpm"

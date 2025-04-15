@@ -1,0 +1,94 @@
+---
+- name: Uninstall Snow Agent and OpenJDK if installed
+  hosts: all
+  become: true
+  tasks:
+
+    - name: Detect OS Family
+      debug:
+        msg: "{{ ansible_facts['os_family'] }}"
+
+    - name: Check if Snow Agent is installed (Rocky Linux)
+      command: rpm -q snowagent
+      register: snowagent_rocky
+      failed_when: false
+      changed_when: false
+
+    - name: Uninstall Snow Agent on Rocky Linux
+      block:
+        - name: Remove Snow Agent package
+          yum:
+            name: snowagent
+            state: absent
+
+        - name: Kill running Snow Agent process
+          command: pkill snowagent
+          register: kill_rocky
+          changed_when: kill_rocky.rc == 0
+          failed_when: kill_rocky.rc not in [0, 1]
+
+        - name: Remove Snow Agent directories
+          file:
+            path: "{{ item }}"
+            state: absent
+          loop:
+            - /opt/snow
+            - /var/run/SnowSoftware
+      when: ansible_facts['os_family'] == "RedHat" and snowagent_rocky.rc == 0
+
+    - name: Check if OpenJDK is installed (Rocky Linux)
+      command: rpm -q java-1.8.0-openjdk
+      register: openjdk_rocky
+      failed_when: false
+      changed_when: false
+
+    - name: Uninstall OpenJDK on Rocky Linux
+      yum:
+        name: java-*
+        state: absent
+      when: ansible_facts['os_family'] == "RedHat" and openjdk_rocky.rc == 0
+
+    - name: Check if Snow Agent is installed (Ubuntu)
+      command: dpkg -l | grep -q snowagent
+      register: snowagent_ubuntu
+      failed_when: false
+      changed_when: false
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Uninstall Snow Agent on Ubuntu
+      block:
+        - name: Remove Snow Agent package
+          apt:
+            name: snowagent
+            state: absent
+            purge: true
+
+        - name: Kill running Snow Agent process
+          command: pkill -f snowagent
+          register: kill_ubuntu
+          changed_when: kill_ubuntu.rc == 0
+          failed_when: kill_ubuntu.rc not in [0, 1]
+
+        - name: Remove Snow Agent directories
+          file:
+            path: "{{ item }}"
+            state: absent
+          loop:
+            - /opt/snow
+            - /var/log/snowagent
+            - /var/run/SnowSoftware
+      when: ansible_facts['os_family'] == "Debian" and snowagent_ubuntu.rc == 0
+
+    - name: Check if OpenJDK is installed (Ubuntu)
+      command: dpkg -l | grep -q openjdk
+      register: openjdk_ubuntu
+      failed_when: false
+      changed_when: false
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Uninstall OpenJDK on Ubuntu
+      apt:
+        name: openjdk-*
+        state: absent
+        purge: true
+      when: ansible_facts['os_family'] == "Debian" and openjdk_ubuntu.rc == 0

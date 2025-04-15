@@ -1,6 +1,16 @@
 - name: Print OS family
   debug:
-    msg: "{{ ansible_facts['os_family'] }}"
+    msg: "OS Family: {{ ansible_facts['os_family'] }}", Distribution: {{ ansible_facts['distribution'] }}"
+
+- name: Removing existing snow report file
+  shell: rm -f /tmp/snow_report.txt
+  delegate_to: localhost
+  run_once: true
+
+- name: Set skip_host if OS is CentOS/Oracle or architecture is i386
+  set_fact:
+    skip_host: true
+  when: ansible_facts['architecture'] == "i386"
 
 - name: Include RPM play if appropriate
   include_tasks: rpm.yml
