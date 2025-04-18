@@ -1,0 +1,130 @@
+---
+- name: Full Pre-Check with output per server
+  hosts: all
+  become: yes
+  tasks:
+
+    - name: Slurp important config files
+      slurp:
+        src: "{{ item }}"
+      loop:
+        - /etc/resolv.conf
+        - /etc/sysctl.conf
+        - /etc/fstab
+      register: config_files
+
+    - name: Save config file content on control node
+      delegate_to: localhost
+      become: false
+      lineinfile:
+        path: "/tmp/prepatch_{{ item.item | basename }}.txt"
+        line: |
+          ===== {{ inventory_hostname }} =====
+          {{ item.content | b64decode }}
+        create: yes
+        insertafter: EOF
+      loop: "{{ config_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Backup network configuration directory to control node
+      synchronize:
+        src: /etc/sysconfig/network-scripts/
+        dest: "/tmp/network-configs/{{ inventory_hostname }}/"
+        mode: pull
+      delegate_to: "{{ inventory_hostname }}"
+
+    - name: Get /var usage in MB
+      shell: |
+        df -h /var | awk 'NR==2 {print $4}'
+      register: var_usage
+
+    - name: Save /var usage on control node
+      delegate_to: localhost
+      become: false
+      lineinfile:
+        path: /tmp/prepatch_var_usage.txt
+        line: "===== {{ inventory_hostname }} =====\nAvailable: {{ var_usage.stdout }}"
+        create: yes
+        insertafter: EOF
+
+    - name: Clean and update package cache
+      block:
+        - name: Clean and update cache (RHEL 8+)
+          dnf:
+            name: '*'
+            state: latest
+            update_cache: yes
+          when: ansible_facts['distribution_major_version']|int >= 8
+
+        - name: Clean and update cache (RHEL 7 and below)
+          yum:
+            name: '*'
+            state: latest
+            update_cache: yes
+          when: ansible_facts['distribution_major_version']|int < 8
+
+    - name: Gather system facts
+      setup:
+
+    - name: Save SELinux status
+      delegate_to: localhost
+      become: false
+      lineinfile:
+        path: /tmp/prepatch_selinux.txt
+        line: "===== {{ inventory_hostname }} =====\nSELinux is {{ ansible_facts.selinux.status }}"
+        create: yes
+        insertafter: EOF
+
+    - name: Gather package facts
+      package_facts:
+        manager: auto
+
+    - name: Extract NFS-related packages
+      set_fact:
+        nfs_packages: "{{ ansible_facts.packages | dict2items | selectattr('key', 'search', 'nfs') | map(attribute='key') | list }}"
+
+    - name: Save NFS packages info
+      delegate_to: localhost
+      become: false
+      lineinfile:
+        path: /tmp/prepatch_nfs_packages.txt
+        line: "===== {{ inventory_hostname }} =====\n{{ nfs_packages | join(', ') }}"
+        create: yes
+        insertafter: EOF
+
+    - name: Extract NFS mount lines from fstab
+      shell: grep -E '\bnfs\b' /etc/fstab || echo "No NFS entries"
+      register: fstab_nfs
+
+    - name: Save NFS mount lines
+      delegate_to: localhost
+      become: false
+      lineinfile:
+        path: /tmp/prepatch_nfs_fstab.txt
+        line: "===== {{ inventory_hostname }} =====\n{{ fstab_nfs.stdout }}"
+        create: yes
+        insertafter: EOF
+
+    - name: Comment out NFS mounts in fstab
+      lineinfile:
+        path: /etc/fstab
+        regexp: '^([^#].*\bnfs\b.*)$'
+        line: '#\1'
+        backrefs: yes
+
+    - name: Check firewall status
+      systemd:
+        name: firewalld
+        state: started
+      register: firewall_status
+      ignore_errors: yes
+
+    - name: Save firewall status
+      delegate_to: localhost
+      become: false
+      lineinfile:
+        path: /tmp/prepatch_firewall.txt
+        line: "===== {{ inventory_hostname }} =====\nFirewall is running: {{ firewall_status is succeeded }}"
+        create: yes
+        insertafter: EOF
